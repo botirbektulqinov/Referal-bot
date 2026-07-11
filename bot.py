@@ -20,7 +20,6 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
-    LinkPreviewOptions,
     Message,
     ReplyKeyboardMarkup,
 )
@@ -439,7 +438,7 @@ async def main():
         BOT_TOKEN,
         default=DefaultBotProperties(
             parse_mode=ParseMode.HTML,
-            link_preview_options=LinkPreviewOptions(is_disabled=True),
+            link_preview_is_disabled=True,
         ),
     )
     global BOT_USERNAME
