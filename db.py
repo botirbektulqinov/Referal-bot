@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS channels (
     title TEXT NOT NULL,
     url   TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,       -- masalan 'banner_file_id'
+    value TEXT
+);
 """
 
 
@@ -64,6 +69,24 @@ async def add_channel(chat, title, url):
 async def delete_channel(cid):
     async with aiosqlite.connect(DB_PATH) as d:
         await d.execute("DELETE FROM channels WHERE id=?", (cid,))
+        await d.commit()
+
+
+# ----------------------------- Sozlamalar (key/value) -----------------------------
+async def get_setting(key):
+    async with aiosqlite.connect(DB_PATH) as d:
+        cur = await d.execute("SELECT value FROM settings WHERE key=?", (key,))
+        row = await cur.fetchone()
+        return row[0] if row else None
+
+
+async def set_setting(key, value):
+    async with aiosqlite.connect(DB_PATH) as d:
+        await d.execute(
+            "INSERT INTO settings (key, value) VALUES (?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value),
+        )
         await d.commit()
 
 

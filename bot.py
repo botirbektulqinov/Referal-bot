@@ -1,6 +1,7 @@
 import asyncio
 import html
 import logging
+from urllib.parse import quote
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
@@ -19,6 +20,7 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
+    LinkPreviewOptions,
     Message,
     ReplyKeyboardMarkup,
 )
@@ -36,6 +38,36 @@ WELCOME = (
     "Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling "
     "va <b>✅ Tasdiqlash</b> tugmasini bosing 👇"
 )
+
+# /start bosilганda birinchi chiqadigan tanishtiruv xabari
+INFO_TEXT = (
+    "🏕️ <b>“Ustoz AI elchilari” oromgohiga yoʻllanma yutib oling!</b>\n\n"
+    "Oromgohda qanday ishtirok etish mumkin?\n\n"
+    "✅ <b>1-Yoʻl:</b>\n"
+    "Ustoz AI haqida video tayyorlang va uni Ustoz AI Instagram sahifasiga collab sifatida "
+    "video yuboring. Eng koʻp koʻrilgan videolar mualliflari oromgoh yoʻllanmasini qoʻlga "
+    "kiritish imkoniyatiga ega boʻladi.\n\n"
+    "✅ <b>2-Yoʻl:</b>\n"
+    "Ustoz AI botidan roʻyxatdan oʻting va sizga berilgan taklif havolasi orqali doʻstlaringizni "
+    "taklif qiling. Eng faol targʻibotchilar oromgohga yoʻllanmani qoʻlga kiritishadi.\n\n"
+    "✅ <b>3-Yoʻl:</b>\n"
+    "Ustoz AI ilovasidagi eng koʻp doʻstini taklif qilgan ishtirokchi yoʻllanmani qoʻlga kiritadi.\n\n"
+    "✅ <b>4-Yoʻl:</b>\n"
+    "Ustoz AI ilovasidagi eng koʻp sertifikat olgan foydalanuvchilar saralab olinadi.\n\n"
+    "💥 Siz qaysi yoʻl orqali Ustoz AI elchilari oromgohiga yoʻllanmani qoʻlga kiritmoqchisiz?"
+)
+
+# "Do'st taklif qilish" postining matni ({link} — foydalanuvchining shaxsiy havolasi)
+INVITE_CAPTION = (
+    "🏕 <b>Bu yozni Boʻstonliq oromgohida mazmunli oʻtkazishga tayyormisiz?</b>\n\n"
+    "📅 27-iyul — 2-avgust\n\n"
+    "Ustoz AI Elchilari Oromgohida qatnashish imkoniyatini qoʻldan boy bermang!\n\n"
+    "🔥 Hozirdanoq doʻstlaringizni taklif qilishni boshlang — har bir taklif sizni "
+    "oromgohga bir qadam yaqinlashtiradi.\n\n"
+    "🔗 <b>Referal havolangiz:</b>\n{link}"
+)
+SHARE_TEXT = "🏕 Ustoz AI Elchilari oromgohiga yoʻllanma yutib oling! Roʻyxatdan oʻting:"
+
 NOT_SUBSCRIBED = (ChatMemberStatus.LEFT, ChatMemberStatus.KICKED)
 
 
@@ -47,6 +79,7 @@ class Reg(StatesGroup):
 class AdminSG(StatesGroup):
     add_channel = State()
     broadcast = State()
+    set_banner = State()
 
 
 def is_admin(uid):
@@ -85,6 +118,7 @@ def admin_panel_kb():
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="📢 Habar yuborish (broadcast)", callback_data="adm_broadcast")],
+            [InlineKeyboardButton(text="🖼 Referal banner rasmini o'rnatish", callback_data="adm_setbanner")],
             [InlineKeyboardButton(text="📊 Excel hisobot yuklab olish", callback_data="adm_excel")],
             [InlineKeyboardButton(text="➕ Kanal qo'shish", callback_data="adm_addch")],
             [InlineKeyboardButton(text="📋 Kanallar ro'yxati", callback_data="adm_listch")],
@@ -118,8 +152,9 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
     if registered:
         await message.answer("🏠 Asosiy menyu", reply_markup=main_menu_kb(is_admin(tid)))
         return
+    await message.answer(INFO_TEXT)  # avval tanishtiruv (4 yo'l)
     channels = await db.get_channels()
-    await message.answer(WELCOME, reply_markup=subscription_kb(channels))
+    await message.answer(WELCOME, reply_markup=subscription_kb(channels))  # keyin kanallar
 
 
 @dp.callback_query(F.data == "check_sub")
@@ -331,18 +366,56 @@ async def _run_broadcast(bot, from_chat, msg_id, user_ids, admin_id):
         pass
 
 
+# ----------------------------- Banner o'rnatish -----------------------------
+@dp.callback_query(F.data == "adm_setbanner")
+async def adm_setbanner(cb: CallbackQuery, state: FSMContext):
+    if not is_admin(cb.from_user.id):
+        return await cb.answer()
+    await state.set_state(AdminSG.set_banner)
+    await cb.message.answer(
+        "🖼 Referal post uchun <b>banner rasmini</b> yuboring.\n\nBekor qilish: /bekor"
+    )
+    await cb.answer()
+
+
+@dp.message(AdminSG.set_banner, Command("bekor"))
+async def setbanner_cancel(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("❌ Bekor qilindi.", reply_markup=admin_panel_kb())
+
+
+@dp.message(AdminSG.set_banner, F.photo)
+async def setbanner_save(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        await state.clear()
+        return
+    await db.set_setting("banner_file_id", message.photo[-1].file_id)
+    await state.clear()
+    await message.answer(
+        "✅ Banner o'rnatildi. Endi \"👥 Do'st taklif qilish\" postida shu rasm chiqadi.",
+        reply_markup=admin_panel_kb(),
+    )
+
+
+@dp.message(AdminSG.set_banner)
+async def setbanner_invalid(message: Message):
+    await message.answer("Iltimos, <b>rasm</b> yuboring. Bekor qilish: /bekor")
+
+
 # ----------------------------- Asosiy menyu -----------------------------
 @dp.message(F.text == "👥 Do'st taklif qilish")
 async def invite(message: Message):
-    coins = await db.get_coins(message.from_user.id)
     link = f"https://t.me/{BOT_USERNAME}?start={message.from_user.id}"
-    await message.answer(
-        "👥 <b>Do'stlaringizni taklif qiling!</b>\n\n"
-        "🔗 Sizning shaxsiy havolangiz:\n"
-        f"<code>{link}</code>\n\n"
-        "Har bir do'st kanallarga obuna bo'lib ro'yxatdan o'tsa — <b>+1 coin</b> 🪙\n"
-        f"Hozirgi coin: <b>{coins}</b>"
+    caption = INVITE_CAPTION.format(link=link)
+    share_url = f"https://t.me/share/url?url={quote(link)}&text={quote(SHARE_TEXT)}"
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="📤 Do'stlarni taklif qilish", url=share_url)]]
     )
+    banner = await db.get_setting("banner_file_id")  # admin panel orqali o'rnatiladi
+    if banner:
+        await message.answer_photo(banner, caption=caption, reply_markup=kb)
+    else:
+        await message.answer(caption, reply_markup=kb)
 
 
 @dp.message(F.text == "🏆 Umumiy statistika")
@@ -362,7 +435,13 @@ async def main():
     if not BOT_TOKEN:
         raise SystemExit("BOT_TOKEN topilmadi. .env faylini to'ldiring.")
     await db.init_db()
-    bot = Bot(BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot = Bot(
+        BOT_TOKEN,
+        default=DefaultBotProperties(
+            parse_mode=ParseMode.HTML,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+        ),
+    )
     global BOT_USERNAME
     BOT_USERNAME = (await bot.get_me()).username
     logging.info("Bot ishga tushdi: @%s", BOT_USERNAME)
