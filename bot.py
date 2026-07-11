@@ -34,8 +34,9 @@ BOT_USERNAME = None  # startup da to'ldiriladi
 
 WELCOME = (
     "👋 <b>Assalomu alaykum!</b>\n\n"
-    "Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling "
-    "va <b>✅ Tasdiqlash</b> tugmasini bosing 👇"
+    "«Ustoz AI oromgohi» saralash bosqichi rasmiy botiga xush kelibsiz! "
+    "Oromgohda ishtirok etish uchun quyidagi kanallarga obuna boʻling va "
+    "doʻstlaringizni taklif qilib, <b>Turoncoin</b>lar toʻplang! 👇"
 )
 
 # /start bosilганda birinchi chiqadigan tanishtiruv xabari
