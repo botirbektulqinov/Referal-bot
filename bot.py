@@ -194,7 +194,15 @@ async def reg_phone(message: Message, state: FSMContext):
     if message.contact.user_id != message.from_user.id:
         await message.answer("⚠️ Iltimos, o'zingizning raqamingizni ulashing.", reply_markup=contact_kb())
         return
-    inviter = await db.complete_registration(message.from_user.id, message.contact.phone_number)
+    phone = message.contact.phone_number
+    if await db.phone_taken(message.from_user.id, phone):  # bir raqam = bir hisob (anti-nakrutka)
+        await state.clear()
+        await message.answer(
+            "⚠️ Bu telefon raqam allaqachon ro'yxatdan o'tgan.\n"
+            "Har bir raqam faqat bir marta ishtirok etishi mumkin."
+        )
+        return
+    inviter = await db.complete_registration(message.from_user.id, phone)
     await state.clear()
     await message.answer(
         "✅ <b>Siz muvaffaqiyatli ro'yxatdan o'tdingiz!</b>\n\n🪙 Coin: <b>0</b>",

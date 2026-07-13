@@ -190,6 +190,20 @@ async def complete_registration(tid, phone):
         return credited
 
 
+async def phone_taken(tid, phone):
+    """Shu telefon boshqa ro'yxatdan o'tgan foydalanuvchida bormi (bir raqam = bir hisob).
+
+    ponytail: ilova darajasidagi tekshiruv; nazariy TOCTOU poygasi bitta jarayonda deyarli
+    imkonsiz. Kafolatli guard kerak bo'lsa — phone ustuniga partial UNIQUE index.
+    """
+    async with aiosqlite.connect(DB_PATH) as d:
+        cur = await d.execute(
+            "SELECT 1 FROM users WHERE phone=? AND registered=1 AND telegram_id!=?",
+            (phone, tid),
+        )
+        return await cur.fetchone() is not None
+
+
 async def get_coins(tid):
     async with aiosqlite.connect(DB_PATH) as d:
         cur = await d.execute("SELECT coins FROM users WHERE telegram_id=?", (tid,))
