@@ -30,6 +30,12 @@ CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,       -- masalan 'banner_file_id'
     value TEXT
 );
+
+CREATE TABLE IF NOT EXISTS admins (
+    telegram_id INTEGER PRIMARY KEY,
+    added_by    INTEGER,
+    created_at  TEXT
+);
 """
 
 
@@ -86,6 +92,22 @@ async def set_setting(key, value):
             "INSERT INTO settings (key, value) VALUES (?,?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (key, value),
+        )
+        await d.commit()
+
+
+# ----------------------------- Adminlar (super admin qo'shadi) -----------------------------
+async def get_admins():
+    async with aiosqlite.connect(DB_PATH) as d:
+        cur = await d.execute("SELECT telegram_id FROM admins")
+        return [r[0] for r in await cur.fetchall()]
+
+
+async def add_admin(tid, added_by):
+    async with aiosqlite.connect(DB_PATH) as d:
+        await d.execute(
+            "INSERT OR IGNORE INTO admins (telegram_id, added_by, created_at) VALUES (?,?,?)",
+            (tid, added_by, _now()),
         )
         await d.commit()
 

@@ -33,6 +33,11 @@ async def run():
     assert (await db.get_rank(1))[0] == 1
     assert (await db.get_rank(2))[0] == 2
 
+    # 6) admin qo'shish
+    await db.add_admin(999, added_by=1)
+    await db.add_admin(999, added_by=1)  # takror — dublikatsiz
+    assert await db.get_admins() == [999]
+
     print("OK")
 
 

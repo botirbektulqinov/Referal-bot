@@ -6,7 +6,10 @@ load_dotenv()
 
 # BOT_TOKEN import paytida emas, main() da tekshiriladi (testlar token so'ramasligi uchun).
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_IDS = {int(x) for x in os.getenv("ADMIN_IDS", "").replace(" ", "").split(",") if x}
+# Birinchi ID — super admin (u yangi admin qo'sha oladi). Ro'yxat tartibi muhim, shuning uchun list.
+_admin_list = [int(x) for x in os.getenv("ADMIN_IDS", "").replace(" ", "").split(",") if x]
+SUPER_ADMIN_ID = _admin_list[0] if _admin_list else None
+ADMIN_IDS = set(_admin_list)
 DB_PATH = os.getenv("DB_PATH", "bot.db")
 
 # Har bir kanal: `chat` — get_chat_member uchun (@username), `url` — tugma havolasi.

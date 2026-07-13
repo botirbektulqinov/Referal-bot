@@ -25,8 +25,11 @@ from aiogram.types import (
 )
 
 import db
-from config import ADMIN_IDS, BOT_TOKEN
+from config import ADMIN_IDS, BOT_TOKEN, SUPER_ADMIN_ID
 from excel_export import build_excel
+
+# env adminlari + bazadagi adminlar (startup'da to'ldiriladi). Bot bitta jarayon — xotira yetarli.
+ADMINS = set(ADMIN_IDS)
 
 logging.basicConfig(level=logging.INFO)
 dp = Dispatcher()
@@ -80,10 +83,15 @@ class AdminSG(StatesGroup):
     add_channel = State()
     broadcast = State()
     set_banner = State()
+    add_admin = State()
 
 
 def is_admin(uid):
-    return uid in ADMIN_IDS
+    return uid in ADMINS
+
+
+def is_super(uid):
+    return uid == SUPER_ADMIN_ID
 
 
 # ----------------------------- Klaviaturalar -----------------------------
@@ -114,17 +122,18 @@ def main_menu_kb(admin=False):
     return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
 
 
-def admin_panel_kb():
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="📢 Habar yuborish (broadcast)", callback_data="adm_broadcast")],
-            [InlineKeyboardButton(text="🖼 Referal banner rasmini o'rnatish", callback_data="adm_setbanner")],
-            [InlineKeyboardButton(text="📊 Excel hisobot yuklab olish", callback_data="adm_excel")],
-            [InlineKeyboardButton(text="➕ Kanal qo'shish", callback_data="adm_addch")],
-            [InlineKeyboardButton(text="📋 Kanallar ro'yxati", callback_data="adm_listch")],
-            [InlineKeyboardButton(text="📈 Umumiy statistika", callback_data="adm_stats")],
-        ]
-    )
+def admin_panel_kb(super_admin=False):
+    rows = [
+        [InlineKeyboardButton(text="📢 Habar yuborish (broadcast)", callback_data="adm_broadcast")],
+        [InlineKeyboardButton(text="🖼 Referal banner rasmini o'rnatish", callback_data="adm_setbanner")],
+        [InlineKeyboardButton(text="📊 Excel hisobot yuklab olish", callback_data="adm_excel")],
+        [InlineKeyboardButton(text="➕ Kanal qo'shish", callback_data="adm_addch")],
+        [InlineKeyboardButton(text="📋 Kanallar ro'yxati", callback_data="adm_listch")],
+        [InlineKeyboardButton(text="📈 Umumiy statistika", callback_data="adm_stats")],
+    ]
+    if super_admin:  # faqat super admin admin qo'sha oladi
+        rows.append([InlineKeyboardButton(text="👑 Admin qo'shish", callback_data="adm_addadmin")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 # ----------------------------- Obuna tekshiruvi -----------------------------
@@ -211,7 +220,7 @@ async def reg_phone_invalid(message: Message):
 async def cmd_admin(message: Message):
     if not is_admin(message.from_user.id):
         return
-    await message.answer("🛠 <b>Admin panel</b>", reply_markup=admin_panel_kb())
+    await message.answer("🛠 <b>Admin panel</b>", reply_markup=admin_panel_kb(is_super(message.from_user.id)))
 
 
 @dp.callback_query(F.data == "adm_excel")
@@ -268,7 +277,7 @@ async def adm_addch_input(message: Message, state: FSMContext):
         pass  # kanal nomini olib bo'lmadi — username bilan saqlaymiz
     await db.add_channel(chat, title, url)
     await state.clear()
-    await message.answer(f"✅ Kanal qo'shildi: <b>{html.escape(title)}</b>", reply_markup=admin_panel_kb())
+    await message.answer(f"✅ Kanal qo'shildi: <b>{html.escape(title)}</b>", reply_markup=admin_panel_kb(is_super(message.from_user.id)))
 
 
 @dp.callback_query(F.data == "adm_listch")
@@ -327,7 +336,7 @@ async def adm_broadcast(cb: CallbackQuery, state: FSMContext):
 @dp.message(AdminSG.broadcast, Command("bekor"))
 async def broadcast_cancel(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("❌ Bekor qilindi.", reply_markup=admin_panel_kb())
+    await message.answer("❌ Bekor qilindi.", reply_markup=admin_panel_kb(is_super(message.from_user.id)))
 
 
 @dp.message(AdminSG.broadcast)
@@ -381,7 +390,7 @@ async def adm_setbanner(cb: CallbackQuery, state: FSMContext):
 @dp.message(AdminSG.set_banner, Command("bekor"))
 async def setbanner_cancel(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("❌ Bekor qilindi.", reply_markup=admin_panel_kb())
+    await message.answer("❌ Bekor qilindi.", reply_markup=admin_panel_kb(is_super(message.from_user.id)))
 
 
 @dp.message(AdminSG.set_banner, F.photo)
@@ -393,13 +402,52 @@ async def setbanner_save(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
         "✅ Banner o'rnatildi. Endi \"👥 Do'st taklif qilish\" postida shu rasm chiqadi.",
-        reply_markup=admin_panel_kb(),
+        reply_markup=admin_panel_kb(is_super(message.from_user.id)),
     )
 
 
 @dp.message(AdminSG.set_banner)
 async def setbanner_invalid(message: Message):
     await message.answer("Iltimos, <b>rasm</b> yuboring. Bekor qilish: /bekor")
+
+
+# ----------------------------- Admin qo'shish (faqat super admin) -----------------------------
+@dp.callback_query(F.data == "adm_addadmin")
+async def adm_addadmin(cb: CallbackQuery, state: FSMContext):
+    if not is_super(cb.from_user.id):
+        return await cb.answer("Faqat super admin admin qo'sha oladi.", show_alert=True)
+    await state.set_state(AdminSG.add_admin)
+    await cb.message.answer(
+        "👑 Yangi admin <b>Telegram ID</b> raqamini yuboring.\n\n"
+        "(Foydalanuvchi o'z ID sini @userinfobot dan bilib olishi mumkin.)\n\nBekor: /bekor"
+    )
+    await cb.answer()
+
+
+@dp.message(AdminSG.add_admin, Command("bekor"))
+async def addadmin_cancel(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("❌ Bekor qilindi.", reply_markup=admin_panel_kb(is_super(message.from_user.id)))
+
+
+@dp.message(AdminSG.add_admin)
+async def addadmin_input(message: Message, state: FSMContext):
+    if not is_super(message.from_user.id):  # oddiy admin bu yerga tusha olmaydi
+        await state.clear()
+        return
+    text = (message.text or "").strip()
+    if not text.isdigit():
+        await message.answer("❌ Faqat raqamli ID yuboring. Bekor: /bekor")
+        return
+    new_id = int(text)
+    await db.add_admin(new_id, message.from_user.id)
+    ADMINS.add(new_id)
+    await state.clear()
+    await message.answer(f"✅ Admin qo'shildi: <code>{new_id}</code>", reply_markup=admin_panel_kb(True))
+    try:
+        await message.bot.send_message(new_id, "👑 Sizga admin huquqi berildi. /admin buyrug'idan foydalaning.")
+    except Exception:
+        pass
 
 
 # ----------------------------- Asosiy menyu -----------------------------
@@ -435,6 +483,7 @@ async def main():
     if not BOT_TOKEN:
         raise SystemExit("BOT_TOKEN topilmadi. .env faylini to'ldiring.")
     await db.init_db()
+    ADMINS.update(await db.get_admins())  # bazadagi adminlarni xotiraga yuklash
     bot = Bot(
         BOT_TOKEN,
         default=DefaultBotProperties(
