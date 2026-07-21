@@ -62,14 +62,21 @@ INFO_TEXT = (
 
 # "Do'st taklif qilish" postining matni ({link} — foydalanuvchining shaxsiy havolasi)
 INVITE_CAPTION = (
-    "🏕 <b>Bu yozni Boʻstonliq oromgohida mazmunli oʻtkazishga tayyormisiz?</b>\n\n"
-    "📅 27-iyul — 2-avgust\n\n"
-    "Ustoz AI Elchilari Oromgohida qatnashish imkoniyatini qoʻldan boy bermang!\n\n"
-    "🔥 Hozirdanoq doʻstlaringizni taklif qilishni boshlang — har bir taklif sizni "
-    "oromgohga bir qadam yaqinlashtiradi.\n\n"
+    "🚀 <b>“Ustoz AI targʻibotchilari” tanloviga START BERDI!</b>\n\n"
+    "Sovgʻalar katta, shartlari esa juda oddiy!\n\n"
+    "📲 Maxsus havolangiz orqali doʻstlaringizni Ustoz AI Telegram kanaliga taklif qiling.\n"
+    "(@{bot})\n\n"
+    "<b>Sovgʻalar:</b>\n"
+    "🥇 1-oʻrin — Telefon\n"
+    "🎁 Keyingi top10 targʻibotchi — har biriga qiymati 1 million soʻmdan oshiq "
+    "Ustoz AI sovgʻalari!\n\n"
+    "Bugunoq boshlang! Har bir taklif sizni gʻalabaga yanada yaqinlashtiradi.\n\n"
     "🔗 <b>Referal havolangiz:</b>\n{link}"
 )
-SHARE_TEXT = "🏕 Ustoz AI Elchilari oromgohiga yoʻllanma yutib oling! Roʻyxatdan oʻting:"
+SHARE_TEXT = (
+    "🚀 “Ustoz AI targʻibotchilari” tanlovi boshlandi! "
+    "1-oʻrin — telefon, TOP 10 ga 1 mln soʻmdan oshiq sovgʻalar. Roʻyxatdan oʻting:"
+)
 
 NOT_SUBSCRIBED = (ChatMemberStatus.LEFT, ChatMemberStatus.KICKED)
 
@@ -462,7 +469,7 @@ async def addadmin_input(message: Message, state: FSMContext):
 @dp.message(F.text == "👥 Do'st taklif qilish")
 async def invite(message: Message):
     link = f"https://t.me/{BOT_USERNAME}?start={message.from_user.id}"
-    caption = INVITE_CAPTION.format(link=link)
+    caption = INVITE_CAPTION.format(link=link, bot=BOT_USERNAME)
     share_url = f"https://t.me/share/url?url={quote(link)}&text={quote(SHARE_TEXT)}"
     kb = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="📤 Do'stlarni taklif qilish", url=share_url)]]

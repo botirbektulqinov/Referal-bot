@@ -17,7 +17,4 @@ DB_PATH = os.getenv("DB_PATH", "bot.db")
 # Qolganlarida bot admin bo'lmasa get_chat_member xato beradi -> tekshirilmaydi (pastda izohga qarang).
 CHANNELS = [
     {"title": "Ustoz AI", "chat": "@ustozai", "url": "https://t.me/ustozai"},
-    {"title": "Turonbank", "chat": "@turonbankuz", "url": "https://t.me/turonbankuz"},
-    {"title": "Alisher Sadullaev", "chat": "@alisher_sadullaev", "url": "https://t.me/alisher_sadullaev"},
-    {"title": "Yoshlar agentligi", "chat": "@yoshlaragentligi", "url": "https://t.me/yoshlaragentligi"},
 ]
